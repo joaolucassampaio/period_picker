@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<manifest>
+  <control namespace="NdC" constructor="PeriodPicker" version="1.0.0" display-name-key="PeriodPicker" description-key="PeriodPicker_Desc" control-type="virtual" >
+    <!--external-service-usage node declares whether this 3rd party PCF control is using external service or not, if yes, the control will be considered as premium and please also add the external service info-->
+    <!--uncomment below lines to use external service
+    <external-service-usage enabled="true">
+      <service-name>serviceName</service-name>
+    </external-service-usage>
+    -->
+    <!-- property node identifies a specific, configurable piece of data that the control expects from its host -->
+    <property name="DateRange" display-name-key="DateRange" description-key="DateRange_Desc" of-type="SingleLine.Text" usage="bound" required="false" />
+    <property name="SingleDateInRange" display-name-key="SingleDateInRange" description-key="SingleDateInRange_Desc" of-type="DateAndTime.DateOnly" usage="bound" required="false" />
+    <resources>
+      <code path="index.ts" order="1"/>
+      <platform-library name="React" version="18.2.0" />
+      <platform-library name="Fluent" version="9.0.0" />
+    </resources>
+    <!-- UNCOMMENT TO ENABLE: use-custom-styling to allow this control to use bundled css files
+    <feature-usage>
+      <uses-feature name="Device.captureAudio" required="true" />
+      <uses-feature name="Device.captureImage" required="true" />
+      <uses-feature name="Device.captureVideo" required="true" />
+      <uses-feature name="Device.getBarcodeValue" required="true" />
+      <uses-feature name="Device.getCurrentPosition" required="true" />
+      <uses-feature name="Device.pickFile" required="true" />
+      <uses-feature name="Utility" required="true" />
+      <uses-feature name="WebAPI" required="true" />
+    </feature-usage>
+    -->
+  </control>
+</manifest>

@@ -1,0 +1,10 @@
+{
+  "solution": {
+    "namespace": "NdC",
+    "componentVersion": "1.0.0",
+    "name": "period_picker",
+    "description": "PCF Period Picker Component",
+    "publisherName": "NdC",
+    "publisherPrefix": "ndc"
+  }
+}
