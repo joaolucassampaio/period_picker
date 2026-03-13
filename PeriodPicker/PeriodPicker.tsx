@@ -1,17 +1,85 @@
 import * as React from "react";
-import { MantineProvider, Paper, Stack, Text, Group, Badge } from "@mantine/core";
+import { MantineProvider, Paper, Stack, Text, Group, Badge, SegmentedControl } from "@mantine/core";
 import { DatePicker } from "@mantine/dates";
 import "@mantine/core/styles.css";
 import "@mantine/dates/styles.css";
 import "dayjs/locale/pt-br";
 
-export interface PeriodPickerProps {
-  dateRange: string;
-  singleDateInRange: Date | null;
-  onDateRangeChange: (range: string) => void;
-  onSingleDateInRangeChange: (date: Date | null) => void;
-  disabled?: boolean;
+// ─── Preset definitions ────────────────────────────────────────────────────────
+
+export type PresetValue =
+  | "custom"
+  | "today"
+  | "yesterday"
+  | "last7days"
+  | "last30days"
+  | "thisMonth"
+  | "lastMonth"
+  | "thisYear"
+  | "lastYear";
+
+interface PresetOption {
+  value: PresetValue;
+  label: string;
 }
+
+const PRESETS: PresetOption[] = [
+  { value: "custom",    label: "Personalizado" },
+  { value: "today",     label: "Hoje" },
+  { value: "yesterday", label: "Ontem" },
+  { value: "last7days", label: "Últimos 7 dias" },
+  { value: "last30days",label: "Últimos 30 dias" },
+  { value: "thisMonth", label: "Este mês" },
+  { value: "lastMonth", label: "Mês passado" },
+  { value: "thisYear",  label: "Este ano" },
+  { value: "lastYear",  label: "Ano passado" },
+];
+
+function calcPresetRange(preset: PresetValue): DateRangeTuple {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const d = (offset: number): Date => {
+    const dt = new Date(today);
+    dt.setDate(dt.getDate() + offset);
+    return dt;
+  };
+
+  switch (preset) {
+    case "today":
+      return [today, today];
+    case "yesterday":
+      return [d(-1), d(-1)];
+    case "last7days":
+      return [d(-6), today];
+    case "last30days":
+      return [d(-29), today];
+    case "thisMonth": {
+      const start = new Date(today.getFullYear(), today.getMonth(), 1);
+      const end   = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      return [start, end];
+    }
+    case "lastMonth": {
+      const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const end   = new Date(today.getFullYear(), today.getMonth(), 0);
+      return [start, end];
+    }
+    case "thisYear": {
+      const start = new Date(today.getFullYear(), 0, 1);
+      const end   = new Date(today.getFullYear(), 11, 31);
+      return [start, end];
+    }
+    case "lastYear": {
+      const start = new Date(today.getFullYear() - 1, 0, 1);
+      const end   = new Date(today.getFullYear() - 1, 11, 31);
+      return [start, end];
+    }
+    default:
+      return [null, null];
+  }
+}
+
+// ─── Helpers ───────────────────────────────────────────────────────────────────
 
 type DateRangeTuple = [Date | null, Date | null];
 
@@ -19,7 +87,7 @@ function formatDateRange(range: DateRangeTuple): string {
   const [start, end] = range;
   if (!start && !end) return "";
   const startStr = start ? start.toISOString().split("T")[0] : "";
-  const endStr = end ? end.toISOString().split("T")[0] : "";
+  const endStr   = end   ? end.toISOString().split("T")[0]   : "";
   return `${startStr},${endStr}`;
 }
 
@@ -28,10 +96,11 @@ function parseDateRange(value: string): DateRangeTuple {
   const parts = value.split(",");
   if (parts.length !== 2) return [null, null];
   const start = parts[0] ? new Date(parts[0] + "T00:00:00") : null;
-  const end = parts[1] ? new Date(parts[1] + "T00:00:00") : null;
-  const isValidStart = start && !isNaN(start.getTime());
-  const isValidEnd = end && !isNaN(end.getTime());
-  return [isValidStart ? start : null, isValidEnd ? end : null];
+  const end   = parts[1] ? new Date(parts[1] + "T00:00:00") : null;
+  return [
+    start && !isNaN(start.getTime()) ? start : null,
+    end   && !isNaN(end.getTime())   ? end   : null,
+  ];
 }
 
 function isDateInRange(date: Date | null, range: DateRangeTuple): boolean {
@@ -44,45 +113,70 @@ function isDateInRange(date: Date | null, range: DateRangeTuple): boolean {
 
 function formatDisplayDate(date: Date | null): string {
   if (!date) return "—";
-  return date.toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
+
+// ─── Props ─────────────────────────────────────────────────────────────────────
+
+export interface PeriodPickerProps {
+  dateRange: string;
+  singleDateInRange: Date | null;
+  preset: string;
+  onDateRangeChange: (range: string) => void;
+  onSingleDateInRangeChange: (date: Date | null) => void;
+  onPresetChange: (preset: string) => void;
+  disabled?: boolean;
+}
+
+// ─── Component ─────────────────────────────────────────────────────────────────
 
 export const PeriodPickerComponent: React.FC<PeriodPickerProps> = ({
   dateRange,
   singleDateInRange,
+  preset,
   onDateRangeChange,
   onSingleDateInRangeChange,
+  onPresetChange,
   disabled = false,
 }) => {
-  const parsedRange = React.useMemo(
-    () => parseDateRange(dateRange),
-    [dateRange]
+  const currentPreset = (PRESETS.some((p) => p.value === preset) ? preset : "custom") as PresetValue;
+
+  const parsedRange = React.useMemo(() => parseDateRange(dateRange), [dateRange]);
+
+  const handlePresetChange = React.useCallback(
+    (value: string) => {
+      const p = value as PresetValue;
+      onPresetChange(p);
+
+      if (p !== "custom") {
+        const range = calcPresetRange(p);
+        onDateRangeChange(formatDateRange(range));
+        // clear single date if it falls outside the new range
+        if (singleDateInRange && !isDateInRange(singleDateInRange, range)) {
+          onSingleDateInRangeChange(null);
+        }
+      }
+    },
+    [onPresetChange, onDateRangeChange, onSingleDateInRangeChange, singleDateInRange]
   );
 
   const handleRangeChange = React.useCallback(
     (value: DateRangeTuple) => {
-      const formatted = formatDateRange(value);
-      onDateRangeChange(formatted);
+      // Manual change → switch to custom
+      onPresetChange("custom");
+      onDateRangeChange(formatDateRange(value));
 
-      // If single date is no longer in range, clear it
       if (singleDateInRange && !isDateInRange(singleDateInRange, value)) {
         onSingleDateInRangeChange(null);
       }
     },
-    [onDateRangeChange, onSingleDateInRangeChange, singleDateInRange]
+    [onPresetChange, onDateRangeChange, onSingleDateInRangeChange, singleDateInRange]
   );
 
   const handleSingleDateChange = React.useCallback(
     (value: Date | null) => {
-      if (!value) {
+      if (!value || !isDateInRange(value, parsedRange)) {
         onSingleDateInRangeChange(null);
-        return;
-      }
-      if (!isDateInRange(value, parsedRange)) {
         return;
       }
       onSingleDateInRangeChange(value);
@@ -95,44 +189,54 @@ export const PeriodPickerComponent: React.FC<PeriodPickerProps> = ({
 
   return (
     <MantineProvider>
-      <Paper p="md" radius="md" withBorder style={{ maxWidth: 680, margin: "0 auto" }}>
+      <Paper p="md" radius="md" withBorder style={{ maxWidth: 720, margin: "0 auto" }}>
         <Stack gap="xl">
           {/* Header */}
           <Text fw={600} size="lg" c="blue.7">
             Período
           </Text>
 
-          {/* Date Range Picker */}
+          {/* Preset selector */}
           <Stack gap="xs">
             <Text size="sm" fw={500} c="dimmed">
-              Intervalo de Datas
+              Atalho de Período
             </Text>
-            <DatePicker
-              type="range"
-              value={parsedRange}
-              onChange={handleRangeChange}
-              locale="pt-br"
-              numberOfColumns={2}
-              style={disabled ? { pointerEvents: "none", opacity: 0.6 } : undefined}
-              getDayProps={(date) => {
-                const inRange = isDateInRange(date, parsedRange);
-                const isSelected =
-                  singleDateInRange &&
-                  date.toDateString() === singleDateInRange.toDateString();
-                return {
-                  style: isSelected
-                    ? {
-                        backgroundColor: "var(--mantine-color-orange-5)",
-                        color: "white",
-                        borderRadius: "50%",
-                      }
-                    : inRange
-                    ? {}
-                    : {},
-                };
-              }}
+            <SegmentedControl
+              value={currentPreset}
+              onChange={handlePresetChange}
+              data={PRESETS.map((p) => ({ value: p.value, label: p.label }))}
+              disabled={disabled}
+              size="xs"
+              style={{ flexWrap: "wrap" }}
             />
           </Stack>
+
+          {/* Date Range Picker — shown only when preset is "custom" */}
+          {currentPreset === "custom" && (
+            <Stack gap="xs">
+              <Text size="sm" fw={500} c="dimmed">
+                Intervalo de Datas
+              </Text>
+              <DatePicker
+                type="range"
+                value={parsedRange}
+                onChange={handleRangeChange}
+                locale="pt-br"
+                numberOfColumns={2}
+                style={disabled ? { pointerEvents: "none", opacity: 0.6 } : undefined}
+                getDayProps={(date) => {
+                  const isSelected =
+                    singleDateInRange &&
+                    date.toDateString() === singleDateInRange.toDateString();
+                  return {
+                    style: isSelected
+                      ? { backgroundColor: "var(--mantine-color-orange-5)", color: "white", borderRadius: "50%" }
+                      : {},
+                  };
+                }}
+              />
+            </Stack>
+          )}
 
           {/* Range Summary */}
           {(rangeStart || rangeEnd) && (
@@ -172,11 +276,7 @@ export const PeriodPickerComponent: React.FC<PeriodPickerProps> = ({
                       date.toDateString() === singleDateInRange.toDateString();
                     return {
                       style: isSelected
-                        ? {
-                            backgroundColor: "var(--mantine-color-orange-5)",
-                            color: "white",
-                            borderRadius: "50%",
-                          }
+                        ? { backgroundColor: "var(--mantine-color-orange-5)", color: "white", borderRadius: "50%" }
                         : {},
                     };
                   }}

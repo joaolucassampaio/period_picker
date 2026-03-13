@@ -10,6 +10,7 @@
     <!-- property node identifies a specific, configurable piece of data that the control expects from its host -->
     <property name="DateRange" display-name-key="DateRange" description-key="DateRange_Desc" of-type="SingleLine.Text" usage="bound" required="false" />
     <property name="SingleDateInRange" display-name-key="SingleDateInRange" description-key="SingleDateInRange_Desc" of-type="DateAndTime.DateOnly" usage="bound" required="false" />
+    <property name="Preset" display-name-key="Preset" description-key="Preset_Desc" of-type="SingleLine.Text" usage="bound" required="false" default-value="custom" />
     <resources>
       <code path="index.ts" order="1"/>
       <platform-library name="React" version="18.2.0" />
